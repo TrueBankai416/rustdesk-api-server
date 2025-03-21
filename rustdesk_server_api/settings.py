@@ -32,8 +32,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 ALLOWED_HOSTS = ["*"]
 AUTH_USER_MODEL = 'api.UserProfile'      # AppName.自定义user
 
-ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "True")          # 是否允许注册, True为允许，False为不允许
-ALLOW_REGISTRATION = True if ALLOW_REGISTRATION.lower() == 'true' else False
+ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "False")          # 是否允许注册, True为允许，False为不允许
+#ALLOW_REGISTRATION = True if ALLOW_REGISTRATION.lower() == 'true' else False
 
 GHUSER = os.environ.get("GHUSER", '')
 GHBEARER = os.environ.get("GHBEARER", '')
