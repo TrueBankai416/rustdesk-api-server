@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if "CSRF_TRUSTED_ORIGINS" in os.environ:
     CSRF_TRUSTED_ORIGINS = [os.environ["CSRF_TRUSTED_ORIGINS"]]
 else:
-    CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:21114"]
+    CSRF_TRUSTED_ORIGINS = ["https://rust.bankai-tech.com"]
     SECURE_CROSS_ORIGIN_OPENER_POLICY = 'None'
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
