@@ -3,8 +3,13 @@ FROM python:3.10-alpine
 WORKDIR /rustdesk-api-server
 ADD . /rustdesk-api-server
 
-# Install build dependencies and Python packages, then clean up
-RUN apk add --no-cache --virtual .build-deps \
+# Install runtime dependencies, build dependencies, then clean up build deps
+RUN apk add --no-cache \
+    zlib \
+    jpeg \
+    freetype \
+    mariadb-connector-c \
+    && apk add --no-cache --virtual .build-deps \
     gcc \
     musl-dev \
     linux-headers \
