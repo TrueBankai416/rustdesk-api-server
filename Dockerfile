@@ -7,6 +7,7 @@ ADD . /rustdesk-api-server
 RUN apk add --no-cache \
     gcc \
     musl-dev \
+    linux-headers \
     mariadb-connector-c-dev \
     pkgconfig
 
