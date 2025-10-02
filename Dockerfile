@@ -1,19 +1,20 @@
-FROM python:3.10.3-alpine
+FROM python:3.10-alpine
 
 WORKDIR /rustdesk-api-server
 ADD . /rustdesk-api-server
 
-# 安装系统依赖
-RUN apk add --no-cache \
+# Install build dependencies and Python packages, then clean up
+RUN apk add --no-cache --virtual .build-deps \
     gcc \
     musl-dev \
     linux-headers \
     mariadb-connector-c-dev \
-    pkgconfig
-
-RUN set -ex \
+    pkgconfig \
+    zlib-dev \
+    jpeg-dev \
+    freetype-dev \
     && pip install --no-cache-dir --disable-pip-version-check -r requirements.txt \
-    && rm -rf /var/cache/apk/* \
+    && apk del .build-deps \
     && cp -r ./db ./db_bak
 
 ENV HOST="0.0.0.0"
