@@ -174,7 +174,7 @@ def generator_view(request):
             extras['downloadLink'] = downloadLink
             extras['delayFix'] = 'true' if delayFix else 'false'
             extras['version'] = version
-            extras['rdgen'] = 'false'
+            extras['rdgen'] = 'true'
             extras['cycleMonitor'] = 'true' if cycleMonitor else 'false'
             extras['xOffline'] = 'true' if xOffline else 'false'
             extras['hidecm'] = 'true' if hidecm else 'false'
