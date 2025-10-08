@@ -151,3 +151,4 @@ class GithubRun(models.Model):
     status = models.CharField(verbose_name="status", max_length=100)
     name = models.CharField(verbose_name="name", max_length=100, default="")
     platform = models.CharField(verbose_name="platform", max_length=100, default="")
+    version = models.CharField(verbose_name="version", max_length=100, default="")

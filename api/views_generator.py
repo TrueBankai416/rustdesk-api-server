@@ -10,7 +10,6 @@ import requests
 import base64
 import json
 import uuid
-import pathlib
 from django.conf import settings as _settings
 from django.db.models import Q
 from .forms import GenerateForm
@@ -53,6 +52,7 @@ def generator_view(request):
             compname = form.cleaned_data['compname']
             if not compname:
                 compname = "Purslane Ltd"
+            compname = compname.replace("&","\\&")
             permPass = form.cleaned_data['permanentPassword']
             theme = form.cleaned_data['theme']
             themeDorO = form.cleaned_data['themeDorO']
@@ -76,14 +76,17 @@ def generator_view(request):
             removeWallpaper = form.cleaned_data['removeWallpaper']
             defaultManual = form.cleaned_data['defaultManual']
             overrideManual = form.cleaned_data['overrideManual']
+            enablePrinter = form.cleaned_data['enablePrinter']
+            enableCamera = form.cleaned_data['enableCamera']
+            enableTerminal = form.cleaned_data['enableTerminal']
 
-            # if all(char.isascii() for char in filename):
-            #     filename = re.sub(r'[^\w\s-]', '_', filename).strip()
-            #     filename = filename.replace(" ","_")
-            # else:
-            #     filename = "rustdesk"
-            # if not all(char.isascii() for char in appname):
-            #     appname = "rustdesk"
+            if all(char.isascii() for char in filename):
+                filename = re.sub(r'[^\w\s-]', '_', filename).strip()
+                filename = filename.replace(" ","_")
+            else:
+                filename = "rustdesk"
+            if not all(char.isascii() for char in appname):
+                appname = "rustdesk"
             myuuid = str(uuid.uuid4())
             protocol = _settings.PROTOCOL
             host = request.get_host()
@@ -107,7 +110,7 @@ def generator_view(request):
 
             ###create the custom.txt json here and send in as inputs below
             decodedCustom = {}
-            if direction != "Both":
+            if direction != "both":
                 decodedCustom['conn-type'] = direction
             if installation == "installationN":
                 decodedCustom['disable-installation'] = 'Y'
@@ -121,14 +124,17 @@ def generator_view(request):
                 decodedCustom['password'] = permPass
             if theme != "system":
                 if themeDorO == "default":
-                    decodedCustom['default-settings']['theme'] = theme
+                    if platform == "windows-x86":
+                        decodedCustom['default-settings']['allow-darktheme'] = 'Y' if theme == "dark" else 'N'
+                    else:
+                        decodedCustom['default-settings']['theme'] = theme
                 elif themeDorO == "override":
-                    decodedCustom['override-settings']['theme'] = theme
-            decodedCustom['approve-mode'] = passApproveMode
+                    if platform == "windows-x86":
+                        decodedCustom['override-settings']['allow-darktheme'] = 'Y' if theme == "dark" else 'N'
+                    else:
+                        decodedCustom['override-settings']['theme'] = theme
             decodedCustom['enable-lan-discovery'] = 'N' if denyLan else 'Y'
-            decodedCustom['direct-server'] = 'Y' if enableDirectIP else 'N'
             decodedCustom['allow-auto-disconnect'] = 'Y' if autoClose else 'N'
-            decodedCustom['allow-remove-wallpaper'] = 'Y' if removeWallpaper else 'N'
             if permissionsDorO == "default":
                 decodedCustom['default-settings']['access-mode'] = permissionsType
                 decodedCustom['default-settings']['enable-keyboard'] = 'Y' if enableKeyboard else 'N'
@@ -140,6 +146,14 @@ def generator_view(request):
                 decodedCustom['default-settings']['enable-record-session'] = 'Y' if enableRecording else 'N'
                 decodedCustom['default-settings']['enable-block-input'] = 'Y' if enableBlockingInput else 'N'
                 decodedCustom['default-settings']['allow-remote-config-modification'] = 'Y' if enableRemoteModi else 'N'
+                decodedCustom['default-settings']['direct-server'] = 'Y' if enableDirectIP else 'N'
+                decodedCustom['default-settings']['verification-method'] = 'use-permanent-password' if hidecm else 'use-both-passwords'
+                decodedCustom['default-settings']['approve-mode'] = passApproveMode
+                decodedCustom['default-settings']['allow-hide-cm'] = 'Y' if hidecm else 'N'
+                decodedCustom['default-settings']['allow-remove-wallpaper'] = 'Y' if removeWallpaper else 'N'
+                decodedCustom['default-settings']['enable-remote-printer'] = 'Y' if enablePrinter else 'N'
+                decodedCustom['default-settings']['enable-camera'] = 'Y' if enableCamera else 'N'
+                decodedCustom['default-settings']['enable-terminal'] = 'Y' if enableTerminal else 'N'
             else:
                 decodedCustom['override-settings']['access-mode'] = permissionsType
                 decodedCustom['override-settings']['enable-keyboard'] = 'Y' if enableKeyboard else 'N'
@@ -151,14 +165,26 @@ def generator_view(request):
                 decodedCustom['override-settings']['enable-record-session'] = 'Y' if enableRecording else 'N'
                 decodedCustom['override-settings']['enable-block-input'] = 'Y' if enableBlockingInput else 'N'
                 decodedCustom['override-settings']['allow-remote-config-modification'] = 'Y' if enableRemoteModi else 'N'
+                decodedCustom['override-settings']['direct-server'] = 'Y' if enableDirectIP else 'N'
+                decodedCustom['override-settings']['verification-method'] = 'use-permanent-password' if hidecm else 'use-both-passwords'
+                decodedCustom['override-settings']['approve-mode'] = passApproveMode
+                decodedCustom['override-settings']['allow-hide-cm'] = 'Y' if hidecm else 'N'
+                decodedCustom['override-settings']['allow-remove-wallpaper'] = 'Y' if removeWallpaper else 'N'
+                decodedCustom['override-settings']['enable-remote-printer'] = 'Y' if enablePrinter else 'N'
+                decodedCustom['override-settings']['enable-camera'] = 'Y' if enableCamera else 'N'
+                decodedCustom['override-settings']['enable-terminal'] = 'Y' if enableTerminal else 'N'
 
             for line in defaultManual.splitlines():
-                k, value = line.split('=')
-                decodedCustom['default-settings'][k.strip()] = value.strip()
+                line = line.strip()
+                if line and '=' in line:
+                    k, value = line.split('=', 1)
+                    decodedCustom['default-settings'][k.strip()] = value.strip()
 
             for line in overrideManual.splitlines():
-                k, value = line.split('=')
-                decodedCustom['override-settings'][k.strip()] = value.strip()
+                line = line.strip()
+                if line and '=' in line:
+                    k, value = line.split('=', 1)
+                    decodedCustom['override-settings'][k.strip()] = value.strip()
             
             decodedCustomJson = json.dumps(decodedCustom)
 
@@ -184,7 +210,9 @@ def generator_view(request):
 
             ####from here run the github action, we need user, repo, access token.
             if platform == 'windows':
-                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows.yml/dispatches' 
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows.yml/dispatches'
+            elif platform == 'windows-x86':
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows-x86.yml/dispatches'
             elif platform == 'linux':
                 url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-linux.yml/dispatches'  
             elif platform == 'android':
@@ -217,7 +245,7 @@ def generator_view(request):
                 'Authorization': 'Bearer '+_settings.GHBEARER,
                 'X-GitHub-Api-Version': '2022-11-28'
             }
-            create_github_run(myuuid,filename,platform)
+            create_github_run(myuuid, filename, platform, version)
             response = requests.post(url, json=data, headers=headers)
             print(response)
             if response.status_code == 204:
@@ -304,12 +332,13 @@ def get_png(request):
     return response
 
 
-def create_github_run(myuuid, myname, myplatform):
+def create_github_run(myuuid, myname, myplatform, myversion=""):
     new_github_run = GithubRun(
         uuid=myuuid,
         status="Starting generator...please wait",
         name=myname,
-        platform=myplatform
+        platform=myplatform,
+        version=myversion
     )
     new_github_run.save()
 
@@ -322,13 +351,140 @@ def update_github_run(request):
 
 def save_custom_client(request):
     file = request.FILES['file']
-    file_save_path = "clients/custom/%s" % file.name
-    pathlib.Path("clients/custom").mkdir(parents=True, exist_ok=True)
+    myuuid = request.POST.get('uuid')
+    
+    # Validate UUID exists in database
+    if not myuuid:
+        return HttpResponse("Missing UUID", status=400)
+    
+    gh_run = GithubRun.objects.filter(Q(uuid=myuuid)).first()
+    if not gh_run:
+        print(f"Rejected file upload for invalid UUID: {myuuid}")
+        return HttpResponse("Invalid UUID", status=403)
+    
+    # Sanitize filename to prevent path traversal and special characters
+    safe_filename = os.path.basename(file.name)
+    safe_filename = re.sub(r'[^A-Za-z0-9._-]', '_', safe_filename)
+    
+    # Save file locally with UUID-based path
+    file_save_path = os.path.join("exe", myuuid, safe_filename)
+    Path(os.path.join("exe", myuuid)).mkdir(parents=True, exist_ok=True)
     with open(file_save_path, "wb+") as f:
         for chunk in file.chunks():
             f.write(chunk)
-
+    
+    # Upload to GitHub releases
+    try:
+        upload_to_github_release(file_save_path, safe_filename, myuuid)
+    except Exception as e:
+        print(f"Failed to upload to GitHub releases: {e}")
+    
     return HttpResponse("File saved successfully!")
+
+def upload_to_github_release(file_path, filename, uuid):
+    """Upload generated client to GitHub releases grouped by version"""
+    
+    # Get metadata from GithubRun
+    gh_run = GithubRun.objects.filter(Q(uuid=uuid)).first()
+    if not gh_run:
+        print(f"No GithubRun found for UUID {uuid}")
+        return
+    
+    # Get version and platform
+    version = gh_run.version if hasattr(gh_run, 'version') and gh_run.version else 'unknown'
+    platform = gh_run.platform if hasattr(gh_run, 'platform') else 'unknown'
+    
+    # Create version-based release tag
+    release_tag = f"custom-build-{version}"
+    release_name = f"Custom RustDesk Clients - v{version}"
+    
+    # GitHub API headers
+    headers = {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': f'Bearer {_settings.GHBEARER}',
+        'X-GitHub-Api-Version': '2022-11-28'
+    }
+    
+    # Get the current repository (not rdgen)
+    # We want to upload to the rustdesk-api-server repo, not rdgen
+    if not _settings.GHUSER:
+        print("GHUSER not configured, cannot upload to releases")
+        return
+    
+    api_repo = os.environ.get('GITHUB_REPOSITORY', f'{_settings.GHUSER}/rustdesk-api-server')
+    
+    # Check if release already exists for this version
+    release_url = f'https://api.github.com/repos/{api_repo}/releases/tags/{release_tag}'
+    response = requests.get(release_url, headers=headers)
+    
+    if response.status_code == 200:
+        # Release exists, use it
+        release_data = response.json()
+        release_id = release_data['id']
+        upload_url = release_data['upload_url'].split('{')[0]
+        print(f"Found existing release {release_tag}, adding asset")
+    else:
+        # Create new release
+        create_url = f'https://api.github.com/repos/{api_repo}/releases'
+        release_data = {
+            'tag_name': release_tag,
+            'name': release_name,
+            'body': f'Custom RustDesk clients for version {version}\n\nGenerated via API',
+            'draft': False,
+            'prerelease': False
+        }
+        
+        response = requests.post(create_url, json=release_data, headers=headers)
+        if response.status_code not in [200, 201]:
+            print(f"Failed to create release: {response.status_code} - {response.text}")
+            return
+        
+        release_id = response.json()['id']
+        upload_url = response.json()['upload_url'].split('{')[0]
+        print(f"Created new release {release_tag}")
+    
+    # Upload file as release asset
+    with open(file_path, 'rb') as f:
+        file_data = f.read()
+    
+    upload_headers = headers.copy()
+    upload_headers['Content-Type'] = 'application/octet-stream'
+    
+    asset_url = f"{upload_url}?name={quote(filename)}"
+    response = requests.post(asset_url, data=file_data, headers=upload_headers)
+    
+    if response.status_code in [200, 201]:
+        print(f"Successfully uploaded {filename} to release {release_tag}")
+    elif response.status_code == 422:
+        # Asset with this name already exists, try to delete and re-upload
+        print(f"Asset {filename} already exists in release {release_tag}, attempting to replace")
+        
+        # Get list of assets for this release
+        assets_url = f'https://api.github.com/repos/{api_repo}/releases/{release_id}/assets'
+        assets_response = requests.get(assets_url, headers=headers)
+        
+        if assets_response.status_code == 200:
+            assets = assets_response.json()
+            # Find the asset with matching name
+            for asset in assets:
+                if asset['name'] == filename:
+                    # Delete the existing asset
+                    delete_url = f"https://api.github.com/repos/{api_repo}/releases/assets/{asset['id']}"
+                    delete_response = requests.delete(delete_url, headers=headers)
+                    
+                    if delete_response.status_code == 204:
+                        print(f"Deleted existing asset {filename}")
+                        # Retry upload
+                        response = requests.post(asset_url, data=file_data, headers=upload_headers)
+                        if response.status_code in [200, 201]:
+                            print(f"Successfully re-uploaded {filename} to release {release_tag}")
+                        else:
+                            print(f"Failed to re-upload asset: {response.status_code} - {response.text}")
+                    else:
+                        print(f"Failed to delete existing asset: {delete_response.status_code}")
+                    break
+    else:
+        print(f"Failed to upload asset: {response.status_code} - {response.text}")
 
 def resize_and_encode_icon(imagefile):
     maxWidth = 200
