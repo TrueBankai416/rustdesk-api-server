@@ -349,6 +349,15 @@ def save_custom_client(request):
     file = request.FILES['file']
     myuuid = request.POST.get('uuid')
     
+    # Validate UUID exists in database
+    if not myuuid:
+        return HttpResponse("Missing UUID", status=400)
+    
+    gh_run = GithubRun.objects.filter(Q(uuid=myuuid)).first()
+    if not gh_run:
+        print(f"Rejected file upload for invalid UUID: {myuuid}")
+        return HttpResponse("Invalid UUID", status=403)
+    
     # Save file locally with UUID-based path
     file_save_path = "exe/%s/%s" % (myuuid, file.name)
     Path("exe/%s" % myuuid).mkdir(parents=True, exist_ok=True)
@@ -389,6 +398,10 @@ def upload_to_github_release(file_path, filename, uuid):
     
     # Get the current repository (not rdgen)
     # We want to upload to the rustdesk-api-server repo, not rdgen
+    if not _settings.GHUSER:
+        print("GHUSER not configured, cannot upload to releases")
+        return
+    
     api_repo = os.environ.get('GITHUB_REPOSITORY', f'{_settings.GHUSER}/rustdesk-api-server')
     
     # Create release
