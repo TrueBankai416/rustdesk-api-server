@@ -358,16 +358,20 @@ def save_custom_client(request):
         print(f"Rejected file upload for invalid UUID: {myuuid}")
         return HttpResponse("Invalid UUID", status=403)
     
+    # Sanitize filename to prevent path traversal and special characters
+    safe_filename = os.path.basename(file.name)
+    safe_filename = re.sub(r'[^A-Za-z0-9._-]', '_', safe_filename)
+    
     # Save file locally with UUID-based path
-    file_save_path = "exe/%s/%s" % (myuuid, file.name)
-    Path("exe/%s" % myuuid).mkdir(parents=True, exist_ok=True)
+    file_save_path = os.path.join("exe", myuuid, safe_filename)
+    Path(os.path.join("exe", myuuid)).mkdir(parents=True, exist_ok=True)
     with open(file_save_path, "wb+") as f:
         for chunk in file.chunks():
             f.write(chunk)
     
     # Upload to GitHub releases
     try:
-        upload_to_github_release(file_save_path, file.name, myuuid)
+        upload_to_github_release(file_save_path, safe_filename, myuuid)
     except Exception as e:
         print(f"Failed to upload to GitHub releases: {e}")
     
@@ -429,7 +433,7 @@ def upload_to_github_release(file_path, filename, uuid):
     upload_headers = headers.copy()
     upload_headers['Content-Type'] = 'application/octet-stream'
     
-    asset_url = f"{upload_url}?name={filename}"
+    asset_url = f"{upload_url}?name={quote(filename)}"
     response = requests.post(asset_url, data=file_data, headers=upload_headers)
     
     if response.status_code in [200, 201]:
