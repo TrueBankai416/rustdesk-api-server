@@ -245,7 +245,7 @@ def generator_view(request):
                 'Authorization': 'Bearer '+_settings.GHBEARER,
                 'X-GitHub-Api-Version': '2022-11-28'
             }
-            create_github_run(myuuid,filename,platform)
+            create_github_run(myuuid, filename, platform, version)
             response = requests.post(url, json=data, headers=headers)
             print(response)
             if response.status_code == 204:
@@ -332,12 +332,13 @@ def get_png(request):
     return response
 
 
-def create_github_run(myuuid, myname, myplatform):
+def create_github_run(myuuid, myname, myplatform, myversion=""):
     new_github_run = GithubRun(
         uuid=myuuid,
         status="Starting generator...please wait",
         name=myname,
-        platform=myplatform
+        platform=myplatform,
+        version=myversion
     )
     new_github_run.save()
 
@@ -381,8 +382,7 @@ def save_custom_client(request):
     return HttpResponse("File saved successfully!")
 
 def upload_to_github_release(file_path, filename, uuid):
-    """Upload generated client to GitHub releases"""
-    import datetime
+    """Upload generated client to GitHub releases grouped by version"""
     
     # Get metadata from GithubRun
     gh_run = GithubRun.objects.filter(Q(uuid=uuid)).first()
@@ -390,11 +390,13 @@ def upload_to_github_release(file_path, filename, uuid):
         print(f"No GithubRun found for UUID {uuid}")
         return
     
-    # Create release tag with timestamp
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    # Get version and platform
+    version = gh_run.version if hasattr(gh_run, 'version') and gh_run.version else 'unknown'
     platform = gh_run.platform if hasattr(gh_run, 'platform') else 'unknown'
-    release_tag = f"client-{platform}-{timestamp}"
-    release_name = f"Custom Client - {gh_run.name if hasattr(gh_run, 'name') else filename}"
+    
+    # Create version-based release tag
+    release_tag = f"custom-build-{version}"
+    release_name = f"Custom RustDesk Clients - v{version}"
     
     # GitHub API headers
     headers = {
@@ -411,23 +413,35 @@ def upload_to_github_release(file_path, filename, uuid):
     
     api_repo = os.environ.get('GITHUB_REPOSITORY', f'{_settings.GHUSER}/rustdesk-api-server')
     
-    # Create release
-    release_url = f'https://api.github.com/repos/{api_repo}/releases'
-    release_data = {
-        'tag_name': release_tag,
-        'name': release_name,
-        'body': f'Custom RustDesk client generated via API\n\nUUID: {uuid}\nPlatform: {platform}\nFilename: {filename}',
-        'draft': False,
-        'prerelease': False
-    }
+    # Check if release already exists for this version
+    release_url = f'https://api.github.com/repos/{api_repo}/releases/tags/{release_tag}'
+    response = requests.get(release_url, headers=headers)
     
-    response = requests.post(release_url, json=release_data, headers=headers)
-    if response.status_code not in [200, 201]:
-        print(f"Failed to create release: {response.status_code} - {response.text}")
-        return
-    
-    release_id = response.json()['id']
-    upload_url = response.json()['upload_url'].split('{')[0]
+    if response.status_code == 200:
+        # Release exists, use it
+        release_data = response.json()
+        release_id = release_data['id']
+        upload_url = release_data['upload_url'].split('{')[0]
+        print(f"Found existing release {release_tag}, adding asset")
+    else:
+        # Create new release
+        create_url = f'https://api.github.com/repos/{api_repo}/releases'
+        release_data = {
+            'tag_name': release_tag,
+            'name': release_name,
+            'body': f'Custom RustDesk clients for version {version}\n\nGenerated via API',
+            'draft': False,
+            'prerelease': False
+        }
+        
+        response = requests.post(create_url, json=release_data, headers=headers)
+        if response.status_code not in [200, 201]:
+            print(f"Failed to create release: {response.status_code} - {response.text}")
+            return
+        
+        release_id = response.json()['id']
+        upload_url = response.json()['upload_url'].split('{')[0]
+        print(f"Created new release {release_tag}")
     
     # Upload file as release asset
     with open(file_path, 'rb') as f:
