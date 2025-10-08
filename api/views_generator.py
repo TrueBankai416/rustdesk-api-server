@@ -176,12 +176,16 @@ def generator_view(request):
                 decodedCustom['override-settings']['enable-terminal'] = 'Y' if enableTerminal else 'N'
 
             for line in defaultManual.splitlines():
-                k, value = line.split('=')
-                decodedCustom['default-settings'][k.strip()] = value.strip()
+                line = line.strip()
+                if line and '=' in line:
+                    k, value = line.split('=', 1)
+                    decodedCustom['default-settings'][k.strip()] = value.strip()
 
             for line in overrideManual.splitlines():
-                k, value = line.split('=')
-                decodedCustom['override-settings'][k.strip()] = value.strip()
+                line = line.strip()
+                if line and '=' in line:
+                    k, value = line.split('=', 1)
+                    decodedCustom['override-settings'][k.strip()] = value.strip()
             
             decodedCustomJson = json.dumps(decodedCustom)
 
