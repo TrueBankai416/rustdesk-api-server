@@ -208,7 +208,7 @@ def generator_view(request):
             ####from here run the github action, we need user, repo, access token.
             if platform == 'windows':
                 url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows.yml/dispatches'
-            if platform == 'windows-x86':
+            elif platform == 'windows-x86':
                 url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows-x86.yml/dispatches'
             elif platform == 'linux':
                 url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-linux.yml/dispatches'  
