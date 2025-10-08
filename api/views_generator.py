@@ -53,6 +53,7 @@ def generator_view(request):
             compname = form.cleaned_data['compname']
             if not compname:
                 compname = "Purslane Ltd"
+            compname = compname.replace("&","\\&")
             permPass = form.cleaned_data['permanentPassword']
             theme = form.cleaned_data['theme']
             themeDorO = form.cleaned_data['themeDorO']
@@ -76,14 +77,17 @@ def generator_view(request):
             removeWallpaper = form.cleaned_data['removeWallpaper']
             defaultManual = form.cleaned_data['defaultManual']
             overrideManual = form.cleaned_data['overrideManual']
+            enablePrinter = form.cleaned_data['enablePrinter']
+            enableCamera = form.cleaned_data['enableCamera']
+            enableTerminal = form.cleaned_data['enableTerminal']
 
-            # if all(char.isascii() for char in filename):
-            #     filename = re.sub(r'[^\w\s-]', '_', filename).strip()
-            #     filename = filename.replace(" ","_")
-            # else:
-            #     filename = "rustdesk"
-            # if not all(char.isascii() for char in appname):
-            #     appname = "rustdesk"
+            if all(char.isascii() for char in filename):
+                filename = re.sub(r'[^\w\s-]', '_', filename).strip()
+                filename = filename.replace(" ","_")
+            else:
+                filename = "rustdesk"
+            if not all(char.isascii() for char in appname):
+                appname = "rustdesk"
             myuuid = str(uuid.uuid4())
             protocol = _settings.PROTOCOL
             host = request.get_host()
@@ -121,14 +125,17 @@ def generator_view(request):
                 decodedCustom['password'] = permPass
             if theme != "system":
                 if themeDorO == "default":
-                    decodedCustom['default-settings']['theme'] = theme
+                    if platform == "windows-x86":
+                        decodedCustom['default-settings']['allow-darktheme'] = 'Y' if theme == "dark" else 'N'
+                    else:
+                        decodedCustom['default-settings']['theme'] = theme
                 elif themeDorO == "override":
-                    decodedCustom['override-settings']['theme'] = theme
-            decodedCustom['approve-mode'] = passApproveMode
+                    if platform == "windows-x86":
+                        decodedCustom['override-settings']['allow-darktheme'] = 'Y' if theme == "dark" else 'N'
+                    else:
+                        decodedCustom['override-settings']['theme'] = theme
             decodedCustom['enable-lan-discovery'] = 'N' if denyLan else 'Y'
-            decodedCustom['direct-server'] = 'Y' if enableDirectIP else 'N'
             decodedCustom['allow-auto-disconnect'] = 'Y' if autoClose else 'N'
-            decodedCustom['allow-remove-wallpaper'] = 'Y' if removeWallpaper else 'N'
             if permissionsDorO == "default":
                 decodedCustom['default-settings']['access-mode'] = permissionsType
                 decodedCustom['default-settings']['enable-keyboard'] = 'Y' if enableKeyboard else 'N'
@@ -140,6 +147,14 @@ def generator_view(request):
                 decodedCustom['default-settings']['enable-record-session'] = 'Y' if enableRecording else 'N'
                 decodedCustom['default-settings']['enable-block-input'] = 'Y' if enableBlockingInput else 'N'
                 decodedCustom['default-settings']['allow-remote-config-modification'] = 'Y' if enableRemoteModi else 'N'
+                decodedCustom['default-settings']['direct-server'] = 'Y' if enableDirectIP else 'N'
+                decodedCustom['default-settings']['verification-method'] = 'use-permanent-password' if hidecm else 'use-both-passwords'
+                decodedCustom['default-settings']['approve-mode'] = passApproveMode
+                decodedCustom['default-settings']['allow-hide-cm'] = 'Y' if hidecm else 'N'
+                decodedCustom['default-settings']['allow-remove-wallpaper'] = 'Y' if removeWallpaper else 'N'
+                decodedCustom['default-settings']['enable-remote-printer'] = 'Y' if enablePrinter else 'N'
+                decodedCustom['default-settings']['enable-camera'] = 'Y' if enableCamera else 'N'
+                decodedCustom['default-settings']['enable-terminal'] = 'Y' if enableTerminal else 'N'
             else:
                 decodedCustom['override-settings']['access-mode'] = permissionsType
                 decodedCustom['override-settings']['enable-keyboard'] = 'Y' if enableKeyboard else 'N'
@@ -151,6 +166,14 @@ def generator_view(request):
                 decodedCustom['override-settings']['enable-record-session'] = 'Y' if enableRecording else 'N'
                 decodedCustom['override-settings']['enable-block-input'] = 'Y' if enableBlockingInput else 'N'
                 decodedCustom['override-settings']['allow-remote-config-modification'] = 'Y' if enableRemoteModi else 'N'
+                decodedCustom['override-settings']['direct-server'] = 'Y' if enableDirectIP else 'N'
+                decodedCustom['override-settings']['verification-method'] = 'use-permanent-password' if hidecm else 'use-both-passwords'
+                decodedCustom['override-settings']['approve-mode'] = passApproveMode
+                decodedCustom['override-settings']['allow-hide-cm'] = 'Y' if hidecm else 'N'
+                decodedCustom['override-settings']['allow-remove-wallpaper'] = 'Y' if removeWallpaper else 'N'
+                decodedCustom['override-settings']['enable-remote-printer'] = 'Y' if enablePrinter else 'N'
+                decodedCustom['override-settings']['enable-camera'] = 'Y' if enableCamera else 'N'
+                decodedCustom['override-settings']['enable-terminal'] = 'Y' if enableTerminal else 'N'
 
             for line in defaultManual.splitlines():
                 k, value = line.split('=')
@@ -184,7 +207,9 @@ def generator_view(request):
 
             ####from here run the github action, we need user, repo, access token.
             if platform == 'windows':
-                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows.yml/dispatches' 
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows.yml/dispatches'
+            if platform == 'windows-x86':
+                url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-windows-x86.yml/dispatches'
             elif platform == 'linux':
                 url = 'https://api.github.com/repos/'+_settings.GHUSER+'/'+_settings.REPONAME+'/actions/workflows/generator-linux.yml/dispatches'  
             elif platform == 'android':
@@ -322,13 +347,82 @@ def update_github_run(request):
 
 def save_custom_client(request):
     file = request.FILES['file']
-    file_save_path = "clients/custom/%s" % file.name
-    pathlib.Path("clients/custom").mkdir(parents=True, exist_ok=True)
+    myuuid = request.POST.get('uuid')
+    
+    # Save file locally with UUID-based path
+    file_save_path = "exe/%s/%s" % (myuuid, file.name)
+    Path("exe/%s" % myuuid).mkdir(parents=True, exist_ok=True)
     with open(file_save_path, "wb+") as f:
         for chunk in file.chunks():
             f.write(chunk)
-
+    
+    # Upload to GitHub releases
+    try:
+        upload_to_github_release(file_save_path, file.name, myuuid)
+    except Exception as e:
+        print(f"Failed to upload to GitHub releases: {e}")
+    
     return HttpResponse("File saved successfully!")
+
+def upload_to_github_release(file_path, filename, uuid):
+    """Upload generated client to GitHub releases"""
+    import datetime
+    
+    # Get metadata from GithubRun
+    gh_run = GithubRun.objects.filter(Q(uuid=uuid)).first()
+    if not gh_run:
+        print(f"No GithubRun found for UUID {uuid}")
+        return
+    
+    # Create release tag with timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    platform = gh_run.platform if hasattr(gh_run, 'platform') else 'unknown'
+    release_tag = f"client-{platform}-{timestamp}"
+    release_name = f"Custom Client - {gh_run.name if hasattr(gh_run, 'name') else filename}"
+    
+    # GitHub API headers
+    headers = {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': f'Bearer {_settings.GHBEARER}',
+        'X-GitHub-Api-Version': '2022-11-28'
+    }
+    
+    # Get the current repository (not rdgen)
+    # We want to upload to the rustdesk-api-server repo, not rdgen
+    api_repo = os.environ.get('GITHUB_REPOSITORY', f'{_settings.GHUSER}/rustdesk-api-server')
+    
+    # Create release
+    release_url = f'https://api.github.com/repos/{api_repo}/releases'
+    release_data = {
+        'tag_name': release_tag,
+        'name': release_name,
+        'body': f'Custom RustDesk client generated via API\n\nUUID: {uuid}\nPlatform: {platform}\nFilename: {filename}',
+        'draft': False,
+        'prerelease': False
+    }
+    
+    response = requests.post(release_url, json=release_data, headers=headers)
+    if response.status_code not in [200, 201]:
+        print(f"Failed to create release: {response.status_code} - {response.text}")
+        return
+    
+    release_id = response.json()['id']
+    upload_url = response.json()['upload_url'].split('{')[0]
+    
+    # Upload file as release asset
+    with open(file_path, 'rb') as f:
+        file_data = f.read()
+    
+    upload_headers = headers.copy()
+    upload_headers['Content-Type'] = 'application/octet-stream'
+    
+    asset_url = f"{upload_url}?name={filename}"
+    response = requests.post(asset_url, data=file_data, headers=upload_headers)
+    
+    if response.status_code in [200, 201]:
+        print(f"Successfully uploaded {filename} to release {release_tag}")
+    else:
+        print(f"Failed to upload asset: {response.status_code} - {response.text}")
 
 def resize_and_encode_icon(imagefile):
     maxWidth = 200
