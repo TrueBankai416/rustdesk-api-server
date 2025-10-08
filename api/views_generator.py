@@ -455,6 +455,34 @@ def upload_to_github_release(file_path, filename, uuid):
     
     if response.status_code in [200, 201]:
         print(f"Successfully uploaded {filename} to release {release_tag}")
+    elif response.status_code == 422:
+        # Asset with this name already exists, try to delete and re-upload
+        print(f"Asset {filename} already exists in release {release_tag}, attempting to replace")
+        
+        # Get list of assets for this release
+        assets_url = f'https://api.github.com/repos/{api_repo}/releases/{release_id}/assets'
+        assets_response = requests.get(assets_url, headers=headers)
+        
+        if assets_response.status_code == 200:
+            assets = assets_response.json()
+            # Find the asset with matching name
+            for asset in assets:
+                if asset['name'] == filename:
+                    # Delete the existing asset
+                    delete_url = f"https://api.github.com/repos/{api_repo}/releases/assets/{asset['id']}"
+                    delete_response = requests.delete(delete_url, headers=headers)
+                    
+                    if delete_response.status_code == 204:
+                        print(f"Deleted existing asset {filename}")
+                        # Retry upload
+                        response = requests.post(asset_url, data=file_data, headers=upload_headers)
+                        if response.status_code in [200, 201]:
+                            print(f"Successfully re-uploaded {filename} to release {release_tag}")
+                        else:
+                            print(f"Failed to re-upload asset: {response.status_code} - {response.text}")
+                    else:
+                        print(f"Failed to delete existing asset: {delete_response.status_code}")
+                    break
     else:
         print(f"Failed to upload asset: {response.status_code} - {response.text}")
 
