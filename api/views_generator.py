@@ -10,7 +10,6 @@ import requests
 import base64
 import json
 import uuid
-import pathlib
 from django.conf import settings as _settings
 from django.db.models import Q
 from .forms import GenerateForm
